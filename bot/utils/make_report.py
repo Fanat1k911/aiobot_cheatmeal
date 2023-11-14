@@ -8,3 +8,7 @@ class Location(StatesGroup):
     nocash = State()
     cash = State()
     more_report = State()
+    poolbar_choosed = State()
+    window_choosed = State()
+    curds_choosed = State()
+    any_report = State()

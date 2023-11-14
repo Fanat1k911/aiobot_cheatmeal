@@ -1,4 +1,4 @@
 .env
 /venv
-bot/settings/config.py
-.idea
+aiobot_cheatmeal/bot/settings/config.py
+.idea/
