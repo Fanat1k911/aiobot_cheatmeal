@@ -2,11 +2,14 @@ import asyncio
 import datetime
 import logging
 import os
+from pprint import pprint
 
 from aiogram import Dispatcher, types, F, Bot
+from aiogram.filters import CommandStart
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.storage.memory import MemoryStorage
 
 from aiobot_cheatmeal.bot.settings import config
 from aiobot_cheatmeal.bot.keyboards import keyboards
@@ -39,10 +42,12 @@ data_day = [[f'Отчёт за {today_now}'],
             ['Технических неисправностей не было;'],
             ['Холодильники заполнены.']]
 Poolbar, Window, Curds, report = {}, {}, {}, {}
+result_report = MemoryStorage()
+result = {}
 
 
-@dp.message(Command('start', 'Start'))
-async def cmd_start(msg: types.Message) -> None:
+@dp.message(CommandStart())
+async def cmd_start(msg: Message) -> None:
     await msg.answer(f'<b>Привет, {msg.from_user.first_name.capitalize()}</b> 👋')
 
 
@@ -66,9 +71,10 @@ async def to_poolbar(callback: CallbackQuery, state: FSMContext):
 async def poolbar_info(msg: Message, state: FSMContext):
     print('Все идет по плану, щас будем вводить суммы')
     if msg.text.isdigit():
-        Poolbar['Отчёт за'] = today_now
+        Poolbar['Отчёт за:'] = today_now
         Poolbar['Безналичные'] = msg.text
-        print(Poolbar.items())
+        # pbar.storage.update(Poolbar)
+        print('Poolbar items >>>', Poolbar.items())
         await state.set_state(Location.cash)
         await msg.answer(f'Введите сумму НАЛИЧНЫХ оплат:')
     else:
@@ -80,32 +86,52 @@ async def poolbar_info(msg: Message, state: FSMContext):
 async def poolbar_to_cash(msg: Message, state: FSMContext):
     if msg.text.isdigit():
         Poolbar['Наличные'] = msg.text
+
+        await result_report.update_data('Poolbar', Poolbar)
+        result.update(Poolbar)
+
         await state.set_state(Location.any_report)
         await msg.answer(f'Good! Были ли другие локации с прибылью?',
                          reply_markup=keyboards.yes_or_no_kb)
-        print(Poolbar.items())
     else:
         await msg.reply('Введите, пожалуйста, сумму цифрами без пробелов и знаков препинаний')
 
 
-@dp.message(Location.any_report)
-@dp.callback_query(F.is_('ДА'))
+@dp.message(Location.any_report, F.text == 'ДА')
 async def go_more_report(msg: Message, state: FSMContext):
-    print('ЭТО БЫЛО "ДА"!')
-    await msg.answer('Выберите локацию продаж:', reply_markup=keyboards.inline_area_kb)
+    print('ЭТО БЫЛО "ДА"!', msg.text)
     await state.set_state(Location.choose_location)
+    await msg.answer('Выберите локацию продаж:', reply_markup=keyboards.inline_area_kb)
+
+
+@dp.message(Location.any_report, F.text == 'НЕТ')
+async def go_more_report(msg: Message, state: FSMContext):
+    await state.set_state(Location.wastes)
+    print('Других локаций с прибылью не было')
+    await msg.answer('Хорошо! Сегодня были траты наличных?', reply_markup=keyboards.yes_or_no_kb)
+
+
+@dp.message(Location.wastes, F.text == 'ДА')
+async def go_wastes(msg: Message, state: FSMContext):
+    await state.set_state(Location.category_choosed)
+    await msg.answer('Выберите категорию трат', reply_markup=keyboards.category_kb)
+
+    print('result_report >>>', result_report.storage.items())
+    print('result >>>', result.items())
+    print(keyboards.inline_area_kb.model_dump()['inline_keyboard'][0][0][
+              'callback_data'])  # TODO: доступ к кнопке получили, теперь нужно ее попробовать удалить из общего списка кнопок
+    # for key, value in keyboards.inline_area_kb.dict().items():
+    #     print(key, value)
+    #     print()
+
+
+# @dp.callback_query(F.data == 'Connection')
+# async def fill_wastes(msg: Message, state: FSMContext):
+#     print('Пришли к заполнению допонительных трат')
 
 
 # TODO: разобраться как корректно фильтровать переход из одного состояния в другое
 # TODO: попробовать разбить локации на разные файлы кода
-# @dp.message(Location.cash)
-# async def set_cash(msg: Message, state: FSMContext):
-#     await state.update_data(НАЛИЧНЫЕ=msg.text)
-#     user_data = await state.get_data()
-#     print(user_data)
-#     await state.set_state(Location.more_report)
-#     await msg.answer(f'Good! Были ли другие локации с прибылью?', reply_markup=keyboards.yes_or_no_kb)
-# await msg.answer(f'Good! Были ли другие локации с прибылью?', reply_markup=keyboards.category_kb)
 
 
 async def main():

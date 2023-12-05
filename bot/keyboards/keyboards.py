@@ -39,7 +39,7 @@ inline_report_kb = InlineKeyboardMarkup(inline_keyboard=[
 poolbar_btn = InlineKeyboardButton(text='Пулбар', callback_data='poolbar_area')
 window_btn = InlineKeyboardButton(text='Окошко', callback_data='window_area')
 Curd_btn = InlineKeyboardButton(text='Ватрушки', callback_data='curds_area')
-show_report_btn = InlineKeyboardButton(text='Посмотреть отчет',callback_data='show_report')
+show_report_btn = InlineKeyboardButton(text='Посмотреть итоговый отчет', callback_data='show_report')
 cancel_btn = InlineKeyboardButton(text='Отменить', callback_data='cancel')
 
 inline_area_kb = InlineKeyboardMarkup(inline_keyboard=[
